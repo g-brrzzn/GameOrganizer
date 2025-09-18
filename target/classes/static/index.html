@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Game Organizer</title>
+    <style>
+        :root{
+            --bg:#0f1724;
+            --card:#0b1220;
+            --muted:#9aa6b2;
+            --accent:#60a5fa;
+            --glass: rgba(255,255,255,0.04);
+            --radius:12px;
+        }
+
+        html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif;background:linear-gradient(180deg,#071126 0%, #07182a 60%);color:#e6eef6}
+        .wrap{max-width:1100px;margin:28px auto;padding:20px}
+        header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+        h1{font-size:20px;margin:0;font-weight:600;letter-spacing:-0.2px}
+        p.lead{margin:0;color:var(--muted);font-size:13px}
+
+        .search {
+            display:flex;gap:8px;margin-top:14px;
+            background:var(--glass);padding:12px;border-radius:12px;align-items:center;backdrop-filter: blur(6px);
+        }
+        .search input{
+            flex:1;background:transparent;border:0;outline:0;color:inherit;font-size:15px;padding:6px 8px;
+        }
+        .btn{
+            background:linear-gradient(180deg,var(--accent),#3b82f6);border:0;padding:8px 12px;border-radius:10px;color:#04233b;font-weight:600;cursor:pointer;
+            box-shadow: 0 6px 18px rgba(59,130,246,0.14), inset 0 -2px 0 rgba(0,0,0,0.12);
+        }
+        .btn:active{transform:translateY(1px)}
+        .controls{display:flex;gap:10px;align-items:center}
+
+        /* Results grid */
+        #results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:20px}
+        .card{
+            background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border-radius:var(--radius);overflow:hidden;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;
+            transition:transform .18s ease, box-shadow .18s ease;
+        }
+        .card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(2,6,23,0.6)}
+        .thumb{height:150px;background-size:cover;background-position:center;border-bottom:1px solid rgba(255,255,255,0.03)}
+        .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:8px}
+        .title{font-size:15px;font-weight:700;color:#fff;display:flex;justify-content:space-between;gap:8px}
+        .meta{font-size:13px;color:var(--muted)}
+        .genres{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+        .badge{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:12px;color:var(--muted);border:1px solid rgba(255,255,255,0.02)}
+
+        .hltb{margin-top:auto;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.03);font-size:13px;color:#dbeafe}
+
+        .small{font-size:12px;color:var(--muted)}
+        .empty{color:var(--muted);font-style:italic;padding:28px;text-align:center;border-radius:8px;background:rgba(255,255,255,0.02)}
+
+        /* loading */
+        .spinner{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);animation:spin .9s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* responsive tweaks */
+        @media (max-width:560px){
+            h1{font-size:18px}
+            .thumb{height:120px}
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <rect x="2" y="3" width="20" height="18" rx="3" fill="#0b1220"/>
+            <path d="M7 8h10M7 12h10M7 16h7" stroke="#60a5fa" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <div>
+            <h1>Game Organizer</h1>
+            <p class="lead">Busca jogos (RAWG) — amplia com dados da Steam e "How long to beat".</p>
+        </div>
+    </header>
+
+    <div class="search" role="search">
+        <input id="q" placeholder="Digite nome do jogo (ex: The Witcher 3, DOOM Eternal)"/>
+        <div class="controls">
+            <button id="btn" class="btn">Pesquisar</button>
+        </div>
+    </div>
+
+    <div id="results" aria-live="polite"></div>
+</div>
+
+<script>
+    const btn = document.getElementById('btn');
+    const q = document.getElementById('q');
+    const results = document.getElementById('results');
+
+    btn.addEventListener('click', () => search(q.value));
+    q.addEventListener('keyup', (e) => { if (e.key === 'Enter') search(q.value); });
+
+    async function search(name){
+        if (!name || !name.trim()) return;
+        results.innerHTML = showLoading();
+        try {
+            const res = await fetch('/api/games/organize?name=' + encodeURIComponent(name));
+            const data = await res.json();
+            render(data);
+        } catch(err){
+            console.error(err);
+            results.innerHTML = '<div class="empty">Erro ao buscar. Tente novamente mais tarde.</div>';
+        }
+    }
+
+    function showLoading(){
+        return '<div class="empty"><div style="display:inline-flex;gap:8px;align-items:center"><div class="spinner"></div><div>Carregando...</div></div></div>';
+    }
+
+    function render(list){
+        if (!Array.isArray(list) || list.length === 0){
+            results.innerHTML = '<div class="empty">Nenhum resultado encontrado.</div>';
+            return;
+        }
+        results.innerHTML = '';
+        for (const g of list){
+            const card = document.createElement('div'); card.className = 'card';
+            const thumb = document.createElement('div'); thumb.className = 'thumb';
+            thumb.style.backgroundImage = g.backgroundImage ? `url(${g.backgroundImage})` : 'linear-gradient(90deg,#071230,#071a2f)';
+            const body = document.createElement('div'); body.className = 'body';
+
+            const title = document.createElement('div'); title.className = 'title';
+            title.innerHTML = `<span>${escapeHtml(g.name)}</span>`;
+
+            const meta = document.createElement('div'); meta.className = 'meta';
+            const genres = (g.genres && g.genres.length) ? g.genres.map(x => `<span class="badge">${escapeHtml(x)}</span>`).join(' ') : '<span class="small">Genres: —</span>';
+            meta.innerHTML = `${genres}`;
+
+            const hltb = document.createElement('div'); hltb.className = 'hltb';
+            let htxt = '';
+            if (g.hltbMain) htxt += `How long to beat — Main: ${escapeHtml(g.hltbMain)}`;
+            if (g.hltbCompletionist) htxt += (htxt ? ' · ' : '') + `Completionist: ${escapeHtml(g.hltbCompletionist)}`;
+            if (!htxt) htxt = 'How long to beat — informação não disponível';
+            hltb.innerHTML = htxt;
+
+            const steamDiv = document.createElement('div');
+            steamDiv.className = 'small';
+
+            // prioridade: steamUrl (do RAWG) > steamAppid (construir link) > fallback '--'
+            let steamHtml = '--';
+            if (g.steamUrl && typeof g.steamUrl === 'string' && g.steamUrl.trim() !== '') {
+                steamHtml = `<a href="${escapeHtml(g.steamUrl)}" target="_blank" rel="noopener noreferrer">Link</a>`;
+            } else if (g.steamAppid) {
+                // caso o backend forneça steamAppid
+                const appid = escapeHtml(String(g.steamAppid));
+                steamHtml = `<a href="https://store.steampowered.com/app/${appid}" target="_blank" rel="noopener noreferrer">Link</a>`;
+            }
+            steamDiv.innerHTML = `Steam: ${steamHtml}`;
+
+            body.appendChild(title);
+            body.appendChild(meta);
+            body.appendChild(hltb);
+            body.appendChild(steamDiv);
+
+            card.appendChild(thumb);
+            card.appendChild(body);
+            results.appendChild(card);
+        }
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

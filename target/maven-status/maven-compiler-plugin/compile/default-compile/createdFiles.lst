@@ -1,0 +1,10 @@
+com\gameorganizer\service\model\RawgStoreInfo.class
+com\gameorganizer\controller\GameController.class
+com\gameorganizer\service\model\RawgStore.class
+com\gameorganizer\service\model\RawgGenre.class
+com\gameorganizer\service\model\SteamAppDetails.class
+com\gameorganizer\service\GameOrganizerService.class
+com\gameorganizer\service\model\GameOverview.class
+com\gameorganizer\service\model\RawgResult.class
+com\gameorganizer\service\model\RawgSearchResponse.class
+com\gameorganizer\GameOrganizer.class
