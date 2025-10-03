@@ -10,7 +10,7 @@
     <description>Game Organizer — busca e enriquece dados de jogos (RAWG + Steam)</description>
 
     <properties>
-        <java.version>20</java.version>
+        <java.version>21</java.version>
         <spring.boot.version>3.2.6</spring.boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -28,6 +28,12 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.14.0</version>
+        </dependency>
+
         <!-- WebFlux -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -44,6 +50,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
         </dependency>
 
         <!-- Lombok (opcional) -->
@@ -60,6 +67,10 @@
             <version>3.1.8</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.htmlunit</groupId>
+            <artifactId>htmlunit</artifactId>
+            <version>3.9.0</version> </dependency>
 
         <dependency>
             <groupId>org.jsoup</groupId>
@@ -93,6 +104,9 @@
                 <configuration>
                     <release>${java.version}</release>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
             </plugin>
 

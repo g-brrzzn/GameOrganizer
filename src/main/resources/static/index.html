@@ -113,53 +113,113 @@
         return '<div class="empty"><div style="display:inline-flex;gap:8px;align-items:center"><div class="spinner"></div><div>Carregando...</div></div></div>';
     }
 
-    function render(list){
-        if (!Array.isArray(list) || list.length === 0){
+    /**
+     * Renderiza a lista de jogos no container de resultados.
+     * Esta versão utiliza a API do DOM para criar elementos, o que é mais seguro
+     * e performático do que a manipulação de strings com innerHTML.
+     */
+    function render(list) {
+        const results = document.getElementById('results');
+
+        // 1. Mantém a verificação de estado vazio. É uma boa prática.
+        if (!Array.isArray(list) || list.length === 0) {
             results.innerHTML = '<div class="empty">Nenhum resultado encontrado.</div>';
             return;
         }
-        results.innerHTML = '';
-        for (const g of list){
-            const card = document.createElement('div'); card.className = 'card';
-            const thumb = document.createElement('div'); thumb.className = 'thumb';
-            thumb.style.backgroundImage = g.backgroundImage ? `url(${g.backgroundImage})` : 'linear-gradient(90deg,#071230,#071a2f)';
-            const body = document.createElement('div'); body.className = 'body';
 
-            const title = document.createElement('div'); title.className = 'title';
-            title.innerHTML = `<span>${escapeHtml(g.name)}</span>`;
+        // 2. Limpa os resultados anteriores. `replaceChildren()` é uma alternativa moderna e limpa a `innerHTML = ''`.
+        results.replaceChildren();
 
-            const meta = document.createElement('div'); meta.className = 'meta';
-            const genres = (g.genres && g.genres.length) ? g.genres.map(x => `<span class="badge">${escapeHtml(x)}</span>`).join(' ') : '<span class="small">Genres: —</span>';
-            meta.innerHTML = `${genres}`;
+        // 3. Itera sobre a lista de jogos para criar e adicionar cada card.
+        for (const g of list) {
+            // --- Criação dos Elementos do Card ---
+            const card = document.createElement('div');
+            card.className = 'card';
 
-            const hltb = document.createElement('div'); hltb.className = 'hltb';
-            let htxt = '';
-            if (g.hltbMain) htxt += `How long to beat — Main: ${escapeHtml(g.hltbMain)}`;
-            if (g.hltbCompletionist) htxt += (htxt ? ' · ' : '') + `Completionist: ${escapeHtml(g.hltbCompletionist)}`;
-            if (!htxt) htxt = 'How long to beat — informação não disponível';
-            hltb.innerHTML = htxt;
+            const thumb = document.createElement('div');
+            thumb.className = 'thumb';
+
+            const body = document.createElement('div');
+            body.className = 'body';
+
+            const title = document.createElement('div');
+            title.className = 'title';
+
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+
+            const hltb = document.createElement('div');
+            hltb.className = 'hltb';
 
             const steamDiv = document.createElement('div');
             steamDiv.className = 'small';
 
-            // prioridade: steamUrl (do RAWG) > steamAppid (construir link) > fallback '--'
-            let steamHtml = '--';
-            if (g.steamUrl && typeof g.steamUrl === 'string' && g.steamUrl.trim() !== '') {
-                steamHtml = `<a href="${escapeHtml(g.steamUrl)}" target="_blank" rel="noopener noreferrer">Link</a>`;
-            } else if (g.steamAppid) {
-                // caso o backend forneça steamAppid
-                const appid = escapeHtml(String(g.steamAppid));
-                steamHtml = `<a href="https://store.steampowered.com/app/${appid}" target="_blank" rel="noopener noreferrer">Link</a>`;
-            }
-            steamDiv.innerHTML = `Steam: ${steamHtml}`;
+            // --- Configuração da Imagem de Fundo (Thumbnail) ---
+            thumb.style.backgroundImage = g.backgroundImage
+                ? `url(${g.backgroundImage})`
+                : 'linear-gradient(90deg, #071230, #071a2f)';
 
+            // --- Título do Jogo ---
+            // Usar `textContent` atribui texto puro e previne XSS automaticamente.
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = g.name;
+            title.appendChild(titleSpan);
+
+            // --- Gêneros ---
+            if (g.genres && g.genres.length > 0) {
+                g.genres.forEach(genreName => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge';
+                    badge.textContent = genreName;
+                    meta.appendChild(badge);
+                });
+            } else {
+                const noGenres = document.createElement('span');
+                noGenres.className = 'small';
+                noGenres.textContent = 'Gêneros: —';
+                meta.appendChild(noGenres);
+            }
+
+            // --- Informações do HowLongToBeat ---
+            let hltbText = '';
+            if (g.hltbMain) {
+                hltbText += `Main: ${g.hltbMain}`;
+            }
+            if (g.hltbCompletionist) {
+                hltbText += (hltbText ? ' · ' : '') + `Completionist: ${g.hltbCompletionist}`;
+            }
+            // Atribui o texto final, com um fallback se nenhuma informação foi encontrada.
+            hltb.textContent = hltbText || 'HowLongToBeat: Informação não disponível';
+
+            // --- Link da Steam ---
+            steamDiv.textContent = 'Steam: ';
+            const steamUrl = g.steamUrl || (g.steamAppid ? `https://store.steampowered.com/app/${g.steamAppid}` : null);
+
+            if (steamUrl) {
+                const steamLink = document.createElement('a');
+                steamLink.href = steamUrl;
+                steamLink.target = '_blank';
+                steamLink.rel = 'noopener noreferrer';
+                steamLink.textContent = 'Página na Loja';
+                steamDiv.appendChild(steamLink);
+            } else {
+                const steamNotAvailable = document.createElement('span');
+                steamNotAvailable.textContent = 'Não disponível';
+                steamDiv.appendChild(steamNotAvailable);
+            }
+
+            // --- Montagem Final do Card ---
+            // Adiciona os elementos de conteúdo ao corpo do card
             body.appendChild(title);
             body.appendChild(meta);
-            body.appendChild(hltb);
             body.appendChild(steamDiv);
+            body.appendChild(hltb);
 
+            // Adiciona a imagem e o corpo ao elemento principal do card
             card.appendChild(thumb);
             card.appendChild(body);
+
+            // Adiciona o card completo ao container de resultados na página
             results.appendChild(card);
         }
     }
