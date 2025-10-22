@@ -1,13 +1,11 @@
 package com.gameorganizer.infra.client.howlongtobeat.dto;
 
-/**
- * DTO simples para carregar as infos extraídas do HowLongToBeat.
- */
+
 public class HLTBInfo {
     private String name;
-    private String main;           // tempo da campanha principal
-    private String completionist;  // tempo para completar tudo
-    private String url;            // link da página no HLTB
+    private String main;
+    private String completionist;
+    private String url;
 
     public HLTBInfo() {}
 

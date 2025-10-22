@@ -13,13 +13,11 @@ public class GameResponseDto {
     private SteamAppDetails steamData;
     private String backgroundImage;
 
-    // novos campos HLTB
     private String hltbMain;
     private String hltbCompletionist;
     private String hltbUrl;
     private String steamUrl;
 
-    // getters / setters
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public Integer getRawgId() { return rawgId; }

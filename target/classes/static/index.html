@@ -34,7 +34,7 @@
         .btn:active{transform:translateY(1px)}
         .controls{display:flex;gap:10px;align-items:center}
 
-        /* Results grid */
+
         #results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:20px}
         .card{
             background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
@@ -54,11 +54,11 @@
         .small{font-size:12px;color:var(--muted)}
         .empty{color:var(--muted);font-style:italic;padding:28px;text-align:center;border-radius:8px;background:rgba(255,255,255,0.02)}
 
-        /* loading */
+
         .spinner{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);animation:spin .9s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
 
-        /* responsive tweaks */
+
         @media (max-width:560px){
             h1{font-size:18px}
             .thumb{height:120px}
@@ -113,26 +113,19 @@
         return '<div class="empty"><div style="display:inline-flex;gap:8px;align-items:center"><div class="spinner"></div><div>Carregando...</div></div></div>';
     }
 
-    /**
-     * Renderiza a lista de jogos no container de resultados.
-     * Esta versão utiliza a API do DOM para criar elementos, o que é mais seguro
-     * e performático do que a manipulação de strings com innerHTML.
-     */
+
     function render(list) {
         const results = document.getElementById('results');
 
-        // 1. Mantém a verificação de estado vazio. É uma boa prática.
         if (!Array.isArray(list) || list.length === 0) {
             results.innerHTML = '<div class="empty">Nenhum resultado encontrado.</div>';
             return;
         }
 
-        // 2. Limpa os resultados anteriores. `replaceChildren()` é uma alternativa moderna e limpa a `innerHTML = ''`.
         results.replaceChildren();
 
-        // 3. Itera sobre a lista de jogos para criar e adicionar cada card.
         for (const g of list) {
-            // --- Criação dos Elementos do Card ---
+
             const card = document.createElement('div');
             card.className = 'card';
 
@@ -154,18 +147,15 @@
             const steamDiv = document.createElement('div');
             steamDiv.className = 'small';
 
-            // --- Configuração da Imagem de Fundo (Thumbnail) ---
             thumb.style.backgroundImage = g.backgroundImage
                 ? `url(${g.backgroundImage})`
                 : 'linear-gradient(90deg, #071230, #071a2f)';
 
-            // --- Título do Jogo ---
-            // Usar `textContent` atribui texto puro e previne XSS automaticamente.
+
             const titleSpan = document.createElement('span');
             titleSpan.textContent = g.name;
             title.appendChild(titleSpan);
 
-            // --- Gêneros ---
             if (g.genres && g.genres.length > 0) {
                 g.genres.forEach(genreName => {
                     const badge = document.createElement('span');
@@ -180,7 +170,6 @@
                 meta.appendChild(noGenres);
             }
 
-            // --- Informações do HowLongToBeat ---
             let hltbText = '';
             if (g.hltbMain) {
                 hltbText += `Main: ${g.hltbMain}`;
@@ -188,10 +177,9 @@
             if (g.hltbCompletionist) {
                 hltbText += (hltbText ? ' · ' : '') + `Completionist: ${g.hltbCompletionist}`;
             }
-            // Atribui o texto final, com um fallback se nenhuma informação foi encontrada.
+
             hltb.textContent = hltbText || 'HowLongToBeat: Informação não disponível';
 
-            // --- Link da Steam ---
             steamDiv.textContent = 'Steam: ';
             const steamUrl = g.steamUrl || (g.steamAppid ? `https://store.steampowered.com/app/${g.steamAppid}` : null);
 
@@ -208,18 +196,15 @@
                 steamDiv.appendChild(steamNotAvailable);
             }
 
-            // --- Montagem Final do Card ---
-            // Adiciona os elementos de conteúdo ao corpo do card
+
             body.appendChild(title);
             body.appendChild(meta);
             body.appendChild(steamDiv);
             body.appendChild(hltb);
 
-            // Adiciona a imagem e o corpo ao elemento principal do card
             card.appendChild(thumb);
             card.appendChild(body);
 
-            // Adiciona o card completo ao container de resultados na página
             results.appendChild(card);
         }
     }
