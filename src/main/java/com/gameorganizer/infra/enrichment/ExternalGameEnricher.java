@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.Map;
 import java.util.Optional;
@@ -47,30 +46,31 @@ public class ExternalGameEnricher implements GameEnrichmentPort {
                     log.error("Falha ao buscar detalhes da Steam: {}", e.getMessage());
                     return Mono.just(Optional.empty());
                 });
-
-        Mono<Optional<HLTBInfo>> hltbInfoMono = Mono.fromCallable(() -> hltbService.search(game.name()))
-                .subscribeOn(Schedulers.boundedElastic())
+        Mono<Optional<HLTBInfo>> hltbInfoMono = hltbService.search(game.name())
                 .onErrorResume(e -> {
                     log.error("Falha ao fazer scraping do HLTB: {}", e.getMessage());
                     return Mono.just(Optional.empty());
                 });
-
         return Mono.zip(steamDetailsMono, hltbInfoMono)
                 .map(tuple -> {
                     Optional<SteamAppDetailsData> steamDataOpt = tuple.getT1();
                     Optional<HLTBInfo> hltbInfoOpt = tuple.getT2();
-
                     steamDataOpt.ifPresent(steamData -> {
                         SteamAppDetails details = new SteamAppDetails();
                         details.setRaw(steamData);
                         overview.setSteamData(details);
                     });
-
-                    hltbInfoOpt.ifPresent(info -> {
+                    if (hltbInfoOpt.isPresent()) {
+                        HLTBInfo info = hltbInfoOpt.get();
                         overview.setHltbMain(info.getMain());
                         overview.setHltbCompletionist(info.getCompletionist());
                         overview.setHltbUrl(info.getUrl());
-                    });
+                    } else {
+                        if (game.playtime() != null && game.playtime() > 0) {
+                            overview.setHltbMain(game.playtime() + " Hours (RAWG Est.)");
+                            overview.setHltbUrl("https://rawg.io/games/" + game.id());
+                        }
+                    }
                     return overview;
                 });
     }
@@ -82,6 +82,7 @@ public class ExternalGameEnricher implements GameEnrichmentPort {
                 .queryParam("cc", "us")
                 .toUriString();
         var responseType = new ParameterizedTypeReference<Map<String, SteamAppDataContainer>>() {};
+
         return webClient.get()
                 .uri(url)
                 .retrieve()

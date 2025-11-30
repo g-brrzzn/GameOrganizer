@@ -3,222 +3,150 @@ package com.gameorganizer.infra.client.howlongtobeat;
 import com.gameorganizer.infra.client.howlongtobeat.dto.HLTBInfo;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.jsoup.Connection;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 @Service
 public class HltbScraperAdapter {
 
-    private static final String BASE = "https://howlongtobeat.com";
-    private static final int TIMEOUT = 10_000;
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+    private static final Logger log = LoggerFactory.getLogger(HltbScraperAdapter.class);
+    private static final String HLTB_SEARCH_URL = "https://howlongtobeat.com/search_results";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
+    private final WebClient webClient;
     private final Cache<String, Optional<HLTBInfo>> cache = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofHours(24))
-            .maximumSize(5_000)
+            .maximumSize(1000)
             .build();
 
-    private static final Pattern TIME_PATTERN = Pattern.compile("(?i)(\\d{1,3}(?:[\\.,]\\d+)?(?:½)?\\s*(?:hours|hour|hrs|hr|h))");
-
-    
-    public Optional<HLTBInfo> search(String gameTitle) {
-        if (gameTitle == null || gameTitle.isBlank()) return Optional.empty();
-        String key = gameTitle.trim().toLowerCase();
-
-        Optional<HLTBInfo> cached = cache.getIfPresent(key);
-        if (cached != null) return cached;
-
-        Optional<HLTBInfo> result = fetchAndParse(gameTitle);
-        cache.put(key, result);
-        return result;
+    public HltbScraperAdapter(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                .build();
     }
 
-    private Optional<HLTBInfo> fetchAndParse(String gameTitle) {
+    /**
+     * Busca informações de tempo de jogo de forma reativa.
+     * Primeiro verifica o cache, depois faz a requisição POST.
+     */
+    public Mono<Optional<HLTBInfo>> search(String gameTitle) {
+        if (gameTitle == null || gameTitle.isBlank()) return Mono.just(Optional.empty());
+        String key = gameTitle.trim().toLowerCase();
+        Optional<HLTBInfo> cached = cache.getIfPresent(key);
+        if (cached != null) return Mono.just(cached);
+        return fetchFromHltbReactive(gameTitle)
+                .doOnNext(opt -> cache.put(key, opt));
+    }
+
+    private Mono<Optional<HLTBInfo>> fetchFromHltbReactive(String query) {
+        return webClient.post()
+                .uri(HLTB_SEARCH_URL)
+                .header("User-Agent", USER_AGENT)
+                .header("Referer", "https://howlongtobeat.com/")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("queryString", query)
+                        .with("t", "games")
+                        .with("sorthead", "popular")
+                        .with("sortd", "Normal Order")
+                        .with("plat", "")
+                        .with("length_type", "main")
+                        .with("length_min", "")
+                        .with("length_max", "")
+                        .with("detail", ""))
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(html -> parseHtmlResponse(query, html))
+                .onErrorResume(e -> {
+                    log.error("Erro na chamada HTTP HLTB: {}", e.getMessage());
+                    return Mono.just(Optional.empty());
+                });
+    }
+    private Optional<HLTBInfo> parseHtmlResponse(String query, String html) {
         try {
-            String encoded = URLEncoder.encode(gameTitle, StandardCharsets.UTF_8);
+            String text = Jsoup.parse(html).text();
 
-            List<String> candidates = List.of(
-                    BASE + "/search_results?page=1&searchterm=" + encoded,
-                    BASE + "/search_results?page=1&searchterm=" + encoded.replace("+", "%20"),
-                    BASE + "/?q=" + encoded,
-                    BASE + "/search?q=" + encoded
-            );
-
-            Document doc = null;
-            Connection.Response lastResp = null;
-
-            for (String url : candidates) {
-                try {
-                    Connection conn = Jsoup.connect(url)
-                            .userAgent(USER_AGENT)
-                            .referrer("https://google.com")
-                            .timeout(TIMEOUT)
-                            .ignoreHttpErrors(true)
-                            .followRedirects(true);
-
-                    Connection.Response resp = conn.execute();
-                    lastResp = resp;
-                    if (resp.statusCode() == 200) {
-                        doc = resp.parse();
-                        break;
-                    }
-                } catch (Exception ignore) {
-
-                }
+            Double main = extractTimeForLabel(text, "(Main Story|Main)[\\s\\S]{0,40}?([0-9½\\.\\-–, ]+?)\\s*(Hours|hrs|hour|hr)");
+            Double completion = extractTimeForLabel(text, "(Completionist|Completionist Time|Completionists)[\\s\\S]{0,60}?([0-9½\\.\\-–, ]+?)\\s*(Hours|hrs|hour|hr)");
+            if (main == null) {
+                Double mainExtra = extractTimeForLabel(text, "(Main \\+ Extra|Main + Extra)[\\s\\S]{0,60}?([0-9½\\.\\-–, ]+?)\\s*(Hours|hrs|hour|hr)");
+                if (mainExtra != null) main = mainExtra;
             }
 
-            if (doc == null) return Optional.empty();
-
-            Element firstResult = null;
-            Elements results = doc.select(".search_list_details, .search_list_box");
-            if (!results.isEmpty()) firstResult = results.first();
-
-            Document detailDoc = doc;
-            String nameFound = null;
-            if (firstResult != null) {
-                Element link = firstResult.selectFirst("a[href]");
-                if (link != null) {
-                    nameFound = link.text().trim();
-                    String href = link.attr("href");
-                    String detailUrl = href.startsWith("http") ? href : BASE + href;
-                    try {
-                        Connection.Response r2 = Jsoup.connect(detailUrl)
-                                .userAgent(USER_AGENT)
-                                .referrer(BASE)
-                                .timeout(TIMEOUT)
-                                .ignoreHttpErrors(true)
-                                .followRedirects(true)
-                                .execute();
-                        if (r2.statusCode() == 200) detailDoc = r2.parse();
-                    } catch (Exception ignore) {  }
-                } else {
-                    nameFound = firstResult.text().trim();
-                }
-            } else {
-
-                Element titleEl = doc.selectFirst("h1, .profile_title, .game_title");
-                if (titleEl != null) nameFound = titleEl.text().trim();
-            }
-
-            Element mainArea = firstNonNull(
-                    detailDoc.selectFirst("#main_content"),
-                    detailDoc.selectFirst(".game_page"),
-                    detailDoc.selectFirst(".profile"),
-                    detailDoc.selectFirst(".content"),
-                    detailDoc.selectFirst("body")
-            );
-
-            if (mainArea == null) mainArea = detailDoc.body();
-
-            String mainTime = extractTimeByLabel(mainArea, "Main Story");
-            if (mainTime == null) mainTime = extractTimeByLabel(mainArea, "Main");
-
-            String completionistTime = extractTimeByLabel(mainArea, "Completionist");
-
-            if (mainTime == null || completionistTime == null) {
-
-                Elements candidatesEls = mainArea.select("div, span, p, li");
-                for (Element el : candidatesEls) {
-                    String text = el.ownText(); // ownText() evita concatenar texto de filhos grandes
-                    if (text == null || text.isBlank()) continue;
-                    String lower = text.toLowerCase();
-                    if (mainTime == null && (lower.contains("main story") || lower.matches(".*\\bmain\\b.*"))) {
-                        String t = findTimeInString(text);
-                        if (t != null) mainTime = t;
-                    }
-                    if (completionistTime == null && lower.contains("completionist")) {
-                        String t = findTimeInString(text);
-                        if (t != null) completionistTime = t;
-                    }
-                    if (mainTime != null && completionistTime != null) break;
-                }
-            }
-
-            if ((mainTime == null || completionistTime == null)) {
-                String smallHtml = mainArea.html();
-
-                if (smallHtml.length() > 20_000) smallHtml = smallHtml.substring(0, 20_000);
-                Matcher m = TIME_PATTERN.matcher(smallHtml);
-                if (m.find() && mainTime == null) mainTime = m.group(1);
-                if (m.find() && completionistTime == null) completionistTime = m.group(1);
-            }
+            if (main == null && completion == null) return Optional.empty();
 
             HLTBInfo info = new HLTBInfo();
-            info.setName(nameFound);
-            info.setMain(mainTime);
-            info.setCompletionist(completionistTime);
-
-            String foundUrl = null;
-            try { foundUrl = detailDoc.baseUri(); } catch (Exception ignored) {}
-            if (foundUrl == null && lastResp != null) {
-                try { foundUrl = lastResp.url().toString(); } catch (Exception ignored) {}
-            }
-            info.setUrl(foundUrl);
-
-            if (info.getMain() != null && info.getMain().length() > 300) info.setMain(info.getMain().substring(0, 200).trim());
-            if (info.getCompletionist() != null && info.getCompletionist().length() > 300) info.setCompletionist(info.getCompletionist().substring(0, 200).trim());
+            info.setName(query);
+            if (main != null) info.setMain(formatHours(main));
+            if (completion != null) info.setCompletionist(formatHours(completion));
+            info.setUrl("https://howlongtobeat.com/?q=" + query.replace(" ", "+"));
 
             return Optional.of(info);
-
         } catch (Exception e) {
-
+            log.error("Erro ao parsear resposta HLTB: {}", e.getMessage());
             return Optional.empty();
         }
     }
 
-    private String extractTimeByLabel(Element root, String label) {
-        if (label == null || root == null) return null;
-        String css = String.format("*:matchesOwn((?i)%s)", Pattern.quote(label)); // matchesOwn para textos curtos
-        Elements els = root.select(css);
-        for (Element el : els) {
+    private String formatHours(Double hours) {
+        if (hours == null) return null;
+        if (hours == Math.floor(hours)) {
+            return String.format("%.0f Hours", hours);
+        }
+        return String.format("%.1f Hours", hours);
+    }
 
-            Element sib = el.nextElementSibling();
-            if (sib != null) {
-                String t = findTimeInString(sib.ownText());
-                if (t != null) return t;
-            }
+    private Double extractTimeForLabel(String text, String labelRegex) {
+        Pattern p = Pattern.compile(labelRegex, Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(text);
+        if (m.find()) {
+            String group = m.group(2);
+            if (group == null) return null;
+            String cleaned = group.replace("hours", "").replace("hr", "")
+                    .replaceAll("[^0-9½\\.,\\-– ]", "").trim();
 
-            Element parent = el.parent();
-            if (parent != null) {
+            cleaned = cleaned.replace(',', '.').replace('\u00BD', '½');
 
-                Elements candidates = parent.select("span, div, p, li");
-                for (Element c : candidates) {
-                    String t = findTimeInString(c.ownText());
-                    if (t != null) return t;
+            if (cleaned.contains("-") || cleaned.contains("–")) {
+                String s = cleaned.replace("–", "-");
+                String[] parts = s.split("-");
+                try {
+                    double a = parsePossiblyHalf(parts[0].trim());
+                    double b = parsePossiblyHalf(parts[1].trim());
+                    return (a + b) / 2.0;
+                } catch (Exception ex) {
+                    return null;
+                }
+            } else {
+                try {
+                    return parsePossiblyHalf(cleaned);
+                } catch (Exception ex) {
+                    return null;
                 }
             }
-
-            String t = findTimeInString(el.ownText());
-            if (t != null) return t;
         }
         return null;
     }
 
-    private String findTimeInString(String s) {
-        if (s == null || s.isBlank()) return null;
-        Matcher m = TIME_PATTERN.matcher(s);
-        if (m.find()) {
-            return m.group(1).trim();
+    private double parsePossiblyHalf(String s) {
+        s = s.trim();
+        if (s.isEmpty()) throw new NumberFormatException();
+        if (s.contains("½")) {
+            s = s.replace("½", ".5");
+        } else if (s.matches(".*\\b1/2\\b.*")) {
+            s = s.replace("1/2", ".5");
         }
-        return null;
-    }
-
-    @SafeVarargs
-    private static <T> T firstNonNull(T... items) {
-        for (T t : items) if (t != null) return t;
-        return null;
+        s = s.replaceAll("\\s+", "");
+        return Double.parseDouble(s);
     }
 }

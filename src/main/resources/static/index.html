@@ -5,211 +5,433 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Game Organizer</title>
     <style>
-        :root{
-            --bg:#0f1724;
-            --card:#0b1220;
-            --muted:#9aa6b2;
-            --accent:#60a5fa;
-            --glass: rgba(255,255,255,0.04);
-            --radius:12px;
-        }
+        :root{ --bg:#0f1724; --card:#1e293b; --muted:#94a3b8; --accent:#3b82f6; --text:#f1f5f9; --glass: rgba(15, 23, 36, 0.7); --radius:12px; --gold: #fbbf24; --danger: #ef4444; --success: #10b981; }
+        * { box-sizing: border-box; }
+        html,body{height:100%;margin:0;font-family:'Inter',system-ui,sans-serif;background-color: var(--bg); color:var(--text);}
 
-        html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif;background:linear-gradient(180deg,#071126 0%, #07182a 60%);color:#e6eef6}
-        .wrap{max-width:1100px;margin:28px auto;padding:20px}
-        header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
-        h1{font-size:20px;margin:0;font-weight:600;letter-spacing:-0.2px}
-        p.lead{margin:0;color:var(--muted);font-size:13px}
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-        .search {
-            display:flex;gap:8px;margin-top:14px;
-            background:var(--glass);padding:12px;border-radius:12px;align-items:center;backdrop-filter: blur(6px);
-        }
-        .search input{
-            flex:1;background:transparent;border:0;outline:0;color:inherit;font-size:15px;padding:6px 8px;
-        }
-        .btn{
-            background:linear-gradient(180deg,var(--accent),#3b82f6);border:0;padding:8px 12px;border-radius:10px;color:#04233b;font-weight:600;cursor:pointer;
-            box-shadow: 0 6px 18px rgba(59,130,246,0.14), inset 0 -2px 0 rgba(0,0,0,0.12);
-        }
-        .btn:active{transform:translateY(1px)}
-        .controls{display:flex;gap:10px;align-items:center}
+        /* HEADER & NAV */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;}
+        h1 { margin: 0; font-size: 24px; color: var(--accent); letter-spacing: -0.5px; }
+        nav { display: flex; gap: 20px; }
+        nav button { background: none; border: none; color: var(--muted); font-size: 16px; font-weight: 600; cursor: pointer; padding: 8px 12px; transition: color 0.2s; position: relative; }
+        nav button.active { color: white; border-bottom: 2px solid var(--accent); }
 
+        /* VIEWS */
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        #results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:20px}
-        .card{
-            background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            border-radius:var(--radius);overflow:hidden;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;
-            transition:transform .18s ease, box-shadow .18s ease;
-        }
-        .card:hover{transform:translateY(-6px);box-shadow:0 14px 40px rgba(2,6,23,0.6)}
-        .thumb{height:150px;background-size:cover;background-position:center;border-bottom:1px solid rgba(255,255,255,0.03)}
-        .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:8px}
-        .title{font-size:15px;font-weight:700;color:#fff;display:flex;justify-content:space-between;gap:8px}
-        .meta{font-size:13px;color:var(--muted)}
-        .genres{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-        .badge{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:12px;color:var(--muted);border:1px solid rgba(255,255,255,0.02)}
+        /* CONTROLS (Search & Filters) */
+        .control-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;}
+        .control-bar input { flex: 1; min-width: 200px; background: var(--card); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: var(--radius); color: white; outline: none; }
+        .control-bar select { background: var(--card); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: var(--radius); cursor: pointer; outline: none;}
+        .btn-primary { background: var(--accent); color: white; border: none; padding: 0 24px; border-radius: var(--radius); font-weight: 600; cursor: pointer; }
 
-        .hltb{margin-top:auto;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.03);font-size:13px;color:#dbeafe}
+        /* GRID */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+        .card { background: var(--card); border-radius: var(--radius); overflow: hidden; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; transition: transform 0.2s; position: relative; }
+        .card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); }
+        .thumb { height: 160px; background-size: cover; background-position: center; position: relative;}
+        .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .game-title { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .game-meta { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 
-        .small{font-size:12px;color:var(--muted)}
-        .empty{color:var(--muted);font-style:italic;padding:28px;text-align:center;border-radius:8px;background:rgba(255,255,255,0.02)}
+        .card-footer { margin-top: auto; padding-top: 12px; display: flex; justify-content: flex-end; gap: 10px; }
 
+        .btn-icon { background: rgba(255,255,255,0.05); color: var(--muted); border: none; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .btn-icon:hover { background: rgba(255,255,255,0.1); color: white; }
+        .btn-icon.delete:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .btn-add { background: var(--accent); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;}
 
-        .spinner{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);animation:spin .9s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+        .modal { background: #1e293b; width: 90%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); transform: scale(0.95); transition: transform 0.2s; }
+        .modal-overlay.open .modal { transform: scale(1); }
 
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+        .form-group select { width: 100%; background: #0f1724; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; color: white; outline: none; }
 
-        @media (max-width:560px){
-            h1{font-size:18px}
-            .thumb{height:120px}
-        }
+        /* STARS */
+        .star-rating { display: flex; gap: 8px; cursor: pointer; justify-content: center; background: #0f1724; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+        .star { font-size: 28px; color: #475569; transition: transform 0.1s; user-select: none; }
+        .star:hover { transform: scale(1.2); }
+        .star.filled { color: var(--gold); }
+
+        .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+        .btn-cancel { background: transparent; color: var(--muted); border: none; padding: 10px 16px; cursor: pointer; font-weight: 600; }
+        .btn-save { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+        /* TOAST */
+        .toast { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px 24px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transform: translateY(100px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-weight: 600; z-index: 200; display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--accent);}
+        .toast.show { transform: translateY(0); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.success { border-left-color: var(--success); }
+
+        /* BADGES */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .st-BACKLOG { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        .st-PLAYING { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .st-COMPLETED { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .st-DROPPED { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .rating-badge { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.8); color: var(--gold); padding:4px 8px; border-radius:4px; font-weight:bold; font-size:12px; }
+
     </style>
 </head>
 <body>
-<div class="wrap">
+
+<div class="container">
     <header>
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <rect x="2" y="3" width="20" height="18" rx="3" fill="#0b1220"/>
-            <path d="M7 8h10M7 12h10M7 16h7" stroke="#60a5fa" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
-        <div>
-            <h1>Game Organizer</h1>
-            <p class="lead">Busca jogos (RAWG) — amplia com dados da Steam e "How long to beat".</p>
-        </div>
+        <h1>Game Organizer</h1>
+        <nav>
+            <button id="tab-search" class="active" onclick="switchTab('search')">Buscar Jogos</button>
+            <button id="tab-library" onclick="switchTab('library')">Minha Biblioteca</button>
+        </nav>
     </header>
 
-    <div class="search" role="search">
-        <input id="q" placeholder="Digite nome do jogo (ex: The Witcher 3, DOOM Eternal)"/>
-        <div class="controls">
-            <button id="btn" class="btn">Pesquisar</button>
+    <div id="view-search" class="view-section active">
+        <div class="control-bar">
+            <input id="searchInput" placeholder="Digite o nome do jogo para buscar na web..." />
+            <button class="btn-primary" onclick="searchWeb()">Pesquisar</button>
+        </div>
+        <div id="searchResults" class="grid">
+            <div style="grid-column: 1/-1; text-align: center; color: var(--muted); padding: 40px;">Comece pesquisando acima.</div>
         </div>
     </div>
 
-    <div id="results" aria-live="polite"></div>
+    <div id="view-library" class="view-section">
+        <div class="control-bar" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px;">
+            <select id="filterStatus" onchange="applyFilters()">
+                <option value="ALL">Todos os Status</option>
+                <option value="BACKLOG">Backlog</option>
+                <option value="PLAYING">Jogando</option>
+                <option value="COMPLETED">Zerado</option>
+                <option value="DROPPED">Larguei</option>
+            </select>
+
+            <select id="filterGenre" onchange="applyFilters()">
+                <option value="ALL">Todos os Gêneros</option>
+            </select>
+
+            <select id="sortBy" onchange="applyFilters()">
+                <option value="newest">Adicionados Recentemente</option>
+                <option value="rating_desc">Melhor Avaliados</option>
+                <option value="rating_asc">Pior Avaliados</option>
+                <option value="name_asc">Nome (A-Z)</option>
+            </select>
+
+            <div style="flex:1; text-align: right; color: var(--muted); font-size: 13px; align-self: center;">
+                <span id="libCount">0</span> jogos
+            </div>
+        </div>
+
+        <div id="libraryGrid" class="grid"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="gameModal">
+    <div class="modal">
+        <h2 id="modalTitle">Detalhes do Jogo</h2>
+
+        <div class="form-group">
+            <label>Status</label>
+            <select id="modalStatus">
+                <option value="BACKLOG">Backlog (Quero Jogar)</option>
+                <option value="PLAYING">Jogando Agora</option>
+                <option value="COMPLETED">Zerado / Platinado</option>
+                <option value="DROPPED">Larguei / Dropped</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Sua Classificação</label>
+            <div class="star-rating" onmouseleave="resetStars()">
+                <span class="star" data-value="1" onclick="setRating(1)" onmouseenter="hoverRating(1)">★</span>
+                <span class="star" data-value="2" onclick="setRating(2)" onmouseenter="hoverRating(2)">★</span>
+                <span class="star" data-value="3" onclick="setRating(3)" onmouseenter="hoverRating(3)">★</span>
+                <span class="star" data-value="4" onclick="setRating(4)" onmouseenter="hoverRating(4)">★</span>
+                <span class="star" data-value="5" onclick="setRating(5)" onmouseenter="hoverRating(5)">★</span>
+            </div>
+            <div style="text-align: center; font-size: 12px; color: var(--muted); margin-top: 5px;">
+                <span id="ratingLabel">Sem nota</span>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+            <button class="btn-save" onclick="saveGame()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast">
+    <span id="toastIcon">✅</span> <span id="toastMsg">Mensagem</span>
 </div>
 
 <script>
-    const btn = document.getElementById('btn');
-    const q = document.getElementById('q');
-    const results = document.getElementById('results');
+    let currentGameData = null;
+    let currentRating = 0;
 
-    btn.addEventListener('click', () => search(q.value));
-    q.addEventListener('keyup', (e) => { if (e.key === 'Enter') search(q.value); });
+    let allMyGames = [];
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('keyup', (e) => { if(e.key === 'Enter') searchWeb(); });
+    function switchTab(tab) {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+        document.getElementById(`view-${tab}`).classList.add('active');
+        if(tab === 'library') loadLibrary();
+    }
+    async function searchWeb() {
+        const query = searchInput.value;
+        if(!query.trim()) return;
 
-    async function search(name){
-        if (!name || !name.trim()) return;
-        results.innerHTML = showLoading();
+        const container = document.getElementById('searchResults');
+        container.innerHTML = '<div style="color:white; grid-column:1/-1; text-align:center;">Pesquisando na nuvem...</div>';
+
         try {
-            const res = await fetch('/api/games/organize?name=' + encodeURIComponent(name));
+            const res = await fetch(`/api/games/organize?name=${encodeURIComponent(query)}`);
             const data = await res.json();
-            render(data);
-        } catch(err){
-            console.error(err);
-            results.innerHTML = '<div class="empty">Erro ao buscar. Tente novamente mais tarde.</div>';
+
+            container.innerHTML = '';
+            if(data.length === 0) {
+                container.innerHTML = '<div style="color:gray; grid-column:1/-1; text-align:center;">Nenhum jogo encontrado.</div>';
+                return;
+            }
+
+            data.forEach(game => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                const gamePayload = {
+                    rawgId: game.rawgId,
+                    title: game.name,
+                    imageUrl: game.backgroundImage,
+                    genres: game.genres ? game.genres.join(', ') : 'Desconhecido'
+                };
+                const safeJson = JSON.stringify(gamePayload).replace(/"/g, '&quot;');
+
+                el.innerHTML = `
+                    <div class="thumb" style="background-image: url('${game.backgroundImage || ''}')"></div>
+                    <div class="card-body">
+                        <div class="game-title">${game.name}</div>
+                        <div class="game-meta">
+                            ${game.genres ? `<span>🏷 ${game.genres.slice(0,3).join(', ')}</span>` : ''}
+                            ${game.hltbMain ? `<span>⏱ ${game.hltbMain}</span>` : ''}
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-add" onclick="openAddModal(${safeJson})">Adicionar</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        } catch(e) {
+            console.error(e);
+            showToast('Erro ao buscar jogos.', true);
+        }
+    }
+    async function loadLibrary() {
+        const container = document.getElementById('libraryGrid');
+        container.innerHTML = '<div style="color:gray;">Sincronizando biblioteca...</div>';
+
+        try {
+            const res = await fetch('/api/library');
+            allMyGames = await res.json();
+            populateGenreFilter();
+            applyFilters();
+
+        } catch(e) {
+            console.error(e);
+            showToast('Erro ao carregar biblioteca.', true);
         }
     }
 
-    function showLoading(){
-        return '<div class="empty"><div style="display:inline-flex;gap:8px;align-items:center"><div class="spinner"></div><div>Carregando...</div></div></div>';
+    function populateGenreFilter() {
+        const select = document.getElementById('filterGenre');
+        const currentVal = select.value;
+        const uniqueGenres = new Set();
+        allMyGames.forEach(g => {
+            if(g.genres) {
+                g.genres.split(',').forEach(genre => uniqueGenres.add(genre.trim()));
+            }
+        });
+        select.innerHTML = '<option value="ALL">Todos os Gêneros</option>';
+        Array.from(uniqueGenres).sort().forEach(g => {
+            if(g) {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.innerText = g;
+                select.appendChild(opt);
+            }
+        });
+        select.value = currentVal;
     }
 
+    function applyFilters() {
+        const status = document.getElementById('filterStatus').value;
+        const genre = document.getElementById('filterGenre').value;
+        const sort = document.getElementById('sortBy').value;
+        let filtered = allMyGames.filter(g => {
+            const matchStatus = status === 'ALL' || g.gameStatus === status;
+            const matchGenre = genre === 'ALL' || (g.genres && g.genres.includes(genre));
+            return matchStatus && matchGenre;
+        });
+        filtered.sort((a, b) => {
+            if(sort === 'newest') return b.id - a.id;
+            if(sort === 'rating_desc') return b.rating - a.rating;
+            if(sort === 'rating_asc') return a.rating - b.rating;
+            if(sort === 'name_asc') return a.title.localeCompare(b.title);
+            return 0;
+        });
+        renderLibrary(filtered);
+    }
 
-    function render(list) {
-        const results = document.getElementById('results');
+    function renderLibrary(list) {
+        const container = document.getElementById('libraryGrid');
+        document.getElementById('libCount').innerText = list.length;
+        container.innerHTML = '';
 
-        if (!Array.isArray(list) || list.length === 0) {
-            results.innerHTML = '<div class="empty">Nenhum resultado encontrado.</div>';
+        if(list.length === 0) {
+            container.innerHTML = '<div style="color:gray; grid-column:1/-1; text-align:center;">Nenhum jogo com esses filtros.</div>';
             return;
         }
 
-        results.replaceChildren();
+        list.forEach(game => {
+            const el = document.createElement('div');
+            el.className = 'card';
+            const safeJson = JSON.stringify(game).replace(/"/g, '&quot;');
+            const starBadge = game.rating > 0 ? `<div class="rating-badge">★ ${game.rating}</div>` : '';
 
-        for (const g of list) {
+            el.innerHTML = `
+                <div class="thumb" style="background-image: url('${game.imageUrl || ''}')">
+                    ${starBadge}
+                </div>
+                <div class="card-body">
+                    <div class="game-title">${game.title}</div>
+                    <div class="game-meta">
+                        <span class="badge st-${game.gameStatus}">${translateStatus(game.gameStatus)}</span>
+                        ${game.genres ? `<span style="margin-top:4px;">🏷 ${game.genres}</span>` : ''}
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn-icon" title="Editar" onclick="openEditModal(${safeJson})">✏️</button>
+                        <button class="btn-icon delete" title="Remover" onclick="deleteGame(${game.id})">✖</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(el);
+        });
+    }
+    function openAddModal(apiGame) {
+        currentGameData = apiGame;
+        currentGameData.gameStatus = 'BACKLOG';
+        currentGameData.rating = 0;
 
-            const card = document.createElement('div');
-            card.className = 'card';
+        document.getElementById('modalTitle').innerText = `Adicionar: ${apiGame.title}`;
+        setupModal(apiGame.gameStatus, apiGame.rating);
+    }
 
-            const thumb = document.createElement('div');
-            thumb.className = 'thumb';
+    function openEditModal(dbGame) {
+        currentGameData = dbGame;
+        document.getElementById('modalTitle').innerText = `Editar: ${dbGame.title}`;
+        setupModal(dbGame.gameStatus, dbGame.rating);
+    }
 
-            const body = document.createElement('div');
-            body.className = 'body';
+    function setupModal(status, rating) {
+        document.getElementById('modalStatus').value = status || 'BACKLOG';
+        currentRating = rating || 0;
+        resetStars();
+        document.getElementById('gameModal').classList.add('open');
+    }
 
-            const title = document.createElement('div');
-            title.className = 'title';
+    function closeModal() {
+        document.getElementById('gameModal').classList.remove('open');
+        currentGameData = null;
+    }
 
-            const meta = document.createElement('div');
-            meta.className = 'meta';
+    async function saveGame() {
+        if(!currentGameData) return;
 
-            const hltb = document.createElement('div');
-            hltb.className = 'hltb';
+        const status = document.getElementById('modalStatus').value;
+        const payload = {
+            rawgId: currentGameData.rawgId,
+            title: currentGameData.title,
+            imageUrl: currentGameData.imageUrl,
+            genres: currentGameData.genres,
+            gameStatus: status,
+            rating: currentRating
+        };
 
-            const steamDiv = document.createElement('div');
-            steamDiv.className = 'small';
+        try {
+            const res = await fetch('/api/library', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
 
-            thumb.style.backgroundImage = g.backgroundImage
-                ? `url(${g.backgroundImage})`
-                : 'linear-gradient(90deg, #071230, #071a2f)';
-
-
-            const titleSpan = document.createElement('span');
-            titleSpan.textContent = g.name;
-            title.appendChild(titleSpan);
-
-            if (g.genres && g.genres.length > 0) {
-                g.genres.forEach(genreName => {
-                    const badge = document.createElement('span');
-                    badge.className = 'badge';
-                    badge.textContent = genreName;
-                    meta.appendChild(badge);
-                });
+            if(res.ok) {
+                closeModal();
+                showToast('Jogo salvo com sucesso!');
+                if(document.getElementById('view-library').classList.contains('active')) {
+                    loadLibrary();
+                }
             } else {
-                const noGenres = document.createElement('span');
-                noGenres.className = 'small';
-                noGenres.textContent = 'Gêneros: —';
-                meta.appendChild(noGenres);
+                throw new Error();
             }
-
-            let hltbText = '';
-            if (g.hltbMain) {
-                hltbText += `Main: ${g.hltbMain}`;
-            }
-            if (g.hltbCompletionist) {
-                hltbText += (hltbText ? ' · ' : '') + `Completionist: ${g.hltbCompletionist}`;
-            }
-
-            hltb.textContent = hltbText || 'HowLongToBeat: Informação não disponível';
-
-            steamDiv.textContent = 'Steam: ';
-            const steamUrl = g.steamUrl || (g.steamAppid ? `https://store.steampowered.com/app/${g.steamAppid}` : null);
-
-            if (steamUrl) {
-                const steamLink = document.createElement('a');
-                steamLink.href = steamUrl;
-                steamLink.target = '_blank';
-                steamLink.rel = 'noopener noreferrer';
-                steamLink.textContent = 'Página na Loja';
-                steamDiv.appendChild(steamLink);
-            } else {
-                const steamNotAvailable = document.createElement('span');
-                steamNotAvailable.textContent = 'Não disponível';
-                steamDiv.appendChild(steamNotAvailable);
-            }
-
-
-            body.appendChild(title);
-            body.appendChild(meta);
-            body.appendChild(steamDiv);
-            body.appendChild(hltb);
-
-            card.appendChild(thumb);
-            card.appendChild(body);
-
-            results.appendChild(card);
+        } catch(e) {
+            showToast('Erro ao salvar jogo.', true);
         }
     }
 
-    function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    async function deleteGame(id) {
+        if(!id || !confirm("Remover da biblioteca?")) return;
+
+        try {
+            const res = await fetch(`/api/library/${id}`, { method: 'DELETE' });
+            if(res.ok) {
+                showToast('Jogo removido.');
+                loadLibrary();
+            } else throw new Error();
+        } catch(e) {
+            showToast('Erro ao remover.', true);
+        }
+    }
+    function hoverRating(val) { fillStars(val); updateLabel(val); }
+    function resetStars() { fillStars(currentRating); updateLabel(currentRating); }
+    function setRating(val) { currentRating = val; fillStars(val); }
+
+    function fillStars(limit) {
+        document.querySelectorAll('.star').forEach(s => {
+            const v = parseInt(s.dataset.value);
+            s.classList.toggle('filled', v <= limit);
+        });
+    }
+
+    function updateLabel(val) {
+        const labels = ["Sem nota", "Ruim", "Razoável", "Bom", "Muito Bom", "Obra Prima"];
+        document.getElementById('ratingLabel').innerText = labels[val] || "Sem nota";
+    }
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        document.getElementById('toastMsg').innerText = msg;
+        document.getElementById('toastIcon').innerText = isError ? '❌' : '✅';
+
+        t.className = `toast ${isError ? 'error' : 'success'}`;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function translateStatus(st) {
+        const map = {'BACKLOG':'Backlog', 'PLAYING':'Jogando', 'COMPLETED':'Zerado', 'DROPPED':'Larguei'};
+        return map[st] || st;
+    }
+    document.getElementById('gameModal').addEventListener('click', (e) => {
+        if(e.target === document.getElementById('gameModal')) closeModal();
+    });
+
 </script>
 </body>
 </html>
