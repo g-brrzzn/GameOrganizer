@@ -172,17 +172,12 @@
 </div>
 
 <script>
-    // --- ESTADO GLOBAL ---
-    let currentGameData = null; // Dados do jogo sendo editado/adicionado
+    let currentGameData = null;
     let currentRating = 0;
 
-    let allMyGames = []; // Cache local da biblioteca para filtrar rápido
-
-    // --- INICIALIZAÇÃO ---
+    let allMyGames = [];
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('keyup', (e) => { if(e.key === 'Enter') searchWeb(); });
-
-    // --- NAVEGAÇÃO ---
     function switchTab(tab) {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById(`tab-${tab}`).classList.add('active');
@@ -190,8 +185,6 @@
         document.getElementById(`view-${tab}`).classList.add('active');
         if(tab === 'library') loadLibrary();
     }
-
-    // --- BUSCA NA WEB (RAWG) ---
     async function searchWeb() {
         const query = searchInput.value;
         if(!query.trim()) return;
@@ -212,7 +205,6 @@
             data.forEach(game => {
                 const el = document.createElement('div');
                 el.className = 'card';
-                // Preparar objeto para salvar (incluindo gêneros)
                 const gamePayload = {
                     rawgId: game.rawgId,
                     title: game.name,
@@ -241,8 +233,6 @@
             showToast('Erro ao buscar jogos.', true);
         }
     }
-
-    // --- BIBLIOTECA (CARREGAMENTO & FILTROS) ---
     async function loadLibrary() {
         const container = document.getElementById('libraryGrid');
         container.innerHTML = '<div style="color:gray;">Sincronizando biblioteca...</div>';
@@ -250,11 +240,7 @@
         try {
             const res = await fetch('/api/library');
             allMyGames = await res.json();
-
-            // Popula o filtro de Gêneros dinamicamente
             populateGenreFilter();
-
-            // Aplica filtros iniciais e renderiza
             applyFilters();
 
         } catch(e) {
@@ -266,16 +252,12 @@
     function populateGenreFilter() {
         const select = document.getElementById('filterGenre');
         const currentVal = select.value;
-
-        // Extrai gêneros únicos
         const uniqueGenres = new Set();
         allMyGames.forEach(g => {
             if(g.genres) {
                 g.genres.split(',').forEach(genre => uniqueGenres.add(genre.trim()));
             }
         });
-
-        // Reconstrói opções mantendo o "Todos"
         select.innerHTML = '<option value="ALL">Todos os Gêneros</option>';
         Array.from(uniqueGenres).sort().forEach(g => {
             if(g) {
@@ -285,31 +267,25 @@
                 select.appendChild(opt);
             }
         });
-        select.value = currentVal; // Mantém seleção se possível
+        select.value = currentVal;
     }
 
     function applyFilters() {
         const status = document.getElementById('filterStatus').value;
         const genre = document.getElementById('filterGenre').value;
         const sort = document.getElementById('sortBy').value;
-
-        // 1. Filtra
         let filtered = allMyGames.filter(g => {
             const matchStatus = status === 'ALL' || g.gameStatus === status;
             const matchGenre = genre === 'ALL' || (g.genres && g.genres.includes(genre));
             return matchStatus && matchGenre;
         });
-
-        // 2. Ordena
         filtered.sort((a, b) => {
-            if(sort === 'newest') return b.id - a.id; // ID maior = mais novo
+            if(sort === 'newest') return b.id - a.id;
             if(sort === 'rating_desc') return b.rating - a.rating;
             if(sort === 'rating_asc') return a.rating - b.rating;
             if(sort === 'name_asc') return a.title.localeCompare(b.title);
             return 0;
         });
-
-        // 3. Renderiza
         renderLibrary(filtered);
     }
 
@@ -326,11 +302,7 @@
         list.forEach(game => {
             const el = document.createElement('div');
             el.className = 'card';
-
-            // Prepara JSON seguro para edição
             const safeJson = JSON.stringify(game).replace(/"/g, '&quot;');
-
-            // Rating badge
             const starBadge = game.rating > 0 ? `<div class="rating-badge">★ ${game.rating}</div>` : '';
 
             el.innerHTML = `
@@ -352,19 +324,17 @@
             container.appendChild(el);
         });
     }
-
-    // --- MODAL & EDIÇÃO ---
     function openAddModal(apiGame) {
         currentGameData = apiGame;
-        currentGameData.gameStatus = 'BACKLOG'; // Default
-        currentGameData.rating = 0; // Default
+        currentGameData.gameStatus = 'BACKLOG';
+        currentGameData.rating = 0;
 
         document.getElementById('modalTitle').innerText = `Adicionar: ${apiGame.title}`;
         setupModal(apiGame.gameStatus, apiGame.rating);
     }
 
     function openEditModal(dbGame) {
-        currentGameData = dbGame; // Já tem ID, rawgId, title, etc.
+        currentGameData = dbGame;
         document.getElementById('modalTitle').innerText = `Editar: ${dbGame.title}`;
         setupModal(dbGame.gameStatus, dbGame.rating);
     }
@@ -385,13 +355,11 @@
         if(!currentGameData) return;
 
         const status = document.getElementById('modalStatus').value;
-
-        // Payload final
         const payload = {
             rawgId: currentGameData.rawgId,
             title: currentGameData.title,
             imageUrl: currentGameData.imageUrl,
-            genres: currentGameData.genres, // Garante que genres são enviados
+            genres: currentGameData.genres,
             gameStatus: status,
             rating: currentRating
         };
@@ -406,7 +374,6 @@
             if(res.ok) {
                 closeModal();
                 showToast('Jogo salvo com sucesso!');
-                // Se estivermos na aba library, recarrega para mostrar mudanças
                 if(document.getElementById('view-library').classList.contains('active')) {
                     loadLibrary();
                 }
@@ -431,8 +398,6 @@
             showToast('Erro ao remover.', true);
         }
     }
-
-    // --- UTILITÁRIOS (Stars & Toast) ---
     function hoverRating(val) { fillStars(val); updateLabel(val); }
     function resetStars() { fillStars(currentRating); updateLabel(currentRating); }
     function setRating(val) { currentRating = val; fillStars(val); }
@@ -463,8 +428,6 @@
         const map = {'BACKLOG':'Backlog', 'PLAYING':'Jogando', 'COMPLETED':'Zerado', 'DROPPED':'Larguei'};
         return map[st] || st;
     }
-
-    // Fecha modal ao clicar fora
     document.getElementById('gameModal').addEventListener('click', (e) => {
         if(e.target === document.getElementById('gameModal')) closeModal();
     });

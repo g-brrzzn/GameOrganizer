@@ -36,10 +36,6 @@ public class HltbScraperAdapter {
                 .build();
     }
 
-    /**
-     * Busca informações de tempo de jogo de forma reativa.
-     * Primeiro verifica o cache, depois faz a requisição POST.
-     */
     public Mono<Optional<HLTBInfo>> search(String gameTitle) {
         if (gameTitle == null || gameTitle.isBlank()) return Mono.just(Optional.empty());
         String key = gameTitle.trim().toLowerCase();
@@ -50,25 +46,21 @@ public class HltbScraperAdapter {
     }
 
     private Mono<Optional<HLTBInfo>> fetchFromHltbReactive(String query) {
-        return webClient.post()
-                .uri(HLTB_SEARCH_URL)
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .scheme("https")
+                        .host("howlongtobeat.com")
+                        .path("/")
+                        .queryParam("q", query)
+                        .build())
                 .header("User-Agent", USER_AGENT)
                 .header("Referer", "https://howlongtobeat.com/")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("queryString", query)
-                        .with("t", "games")
-                        .with("sorthead", "popular")
-                        .with("sortd", "Normal Order")
-                        .with("plat", "")
-                        .with("length_type", "main")
-                        .with("length_min", "")
-                        .with("length_max", "")
-                        .with("detail", ""))
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(html -> parseHtmlResponse(query, html))
                 .onErrorResume(e -> {
-                    log.error("Erro na chamada HTTP HLTB: {}", e.getMessage());
+
+                    log.warn("HLTB Scraper falhou (Site mudou ou bloqueou): {} - Usando Fallback da RAWG", e.getMessage());
                     return Mono.just(Optional.empty());
                 });
     }

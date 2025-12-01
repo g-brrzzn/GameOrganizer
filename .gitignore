@@ -32,3 +32,5 @@ target/
 
 code2text.py
 code2text_output.txt
+src/main/resources/application.properties
+target/classes/application.properties
