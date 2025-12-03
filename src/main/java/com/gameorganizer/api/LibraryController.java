@@ -5,6 +5,7 @@ import com.gameorganizer.domain.repository.UserGameRepository;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/library")
@@ -31,9 +32,24 @@ public class LibraryController {
                 })
                 .switchIfEmpty(repository.save(game));
     }
+
     @DeleteMapping("/{id}")
     public Mono<Void> removeFromLibrary(@PathVariable("id") Long id) {
-        System.out.println("Recebido pedido para deletar ID: " + id);
         return repository.deleteById(id);
+    }
+    @PostMapping("/reorder")
+    public Mono<Void> reorderLibrary(@RequestBody List<Long> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> {
+                    Long index = tuple.getT1();
+                    Long id = tuple.getT2();
+                    return repository.findById(id)
+                            .flatMap(game -> {
+                                game.setListOrder(index.intValue());
+                                return repository.save(game);
+                            });
+                })
+                .then();
     }
 }

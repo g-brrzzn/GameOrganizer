@@ -25,6 +25,8 @@ public class UserGame {
 
     @Column("genres")
     private String genres;
+    @Column("list_order")
+    private Integer listOrder;
 
     public UserGame() {}
     public String getGenres() { return genres; }
@@ -41,4 +43,6 @@ public class UserGame {
     public void setGameStatus(String gameStatus) { this.gameStatus = gameStatus; }
     public Integer getRating() { return rating; }
     public void setRating(Integer rating) { this.rating = rating; }
+    public Integer getListOrder() { return listOrder == null ? 9999 : listOrder; }
+    public void setListOrder(Integer listOrder) { this.listOrder = listOrder; }
 }

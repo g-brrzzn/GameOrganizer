@@ -13,14 +13,8 @@ public class MockGameEnrichmentAdapter implements GameEnrichmentPort {
 
     @Override
     public Mono<GameResponseDto> enrich(GameResponseDto overview, Game game) {
-        System.out.println("--- USANDO MODO MOCK PARA ENRIQUECIMENTO (STEAM + HLTB) ---");
-
-        overview.setHltbMain("50h (Mock)");
-        overview.setHltbCompletionist("172h (Mock)");
-        overview.setHltbUrl("https://howlongtobeat.com/mock");
-
+        System.out.println("--- USANDO MODO MOCK PARA ENRIQUECIMENTO (Apenas Steam) ---");
         overview.setSteamUrl("https://store.steampowered.com/app/mock");
-
         return Mono.just(overview);
     }
 }

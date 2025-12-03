@@ -33,7 +33,8 @@ public class GameService {
         GameResponseDto dto = new GameResponseDto();
         dto.setRawgId(game.id());
         dto.setName(game.name());
-        dto.setPlaytime(game.playtime());
+        dto.setMetacritic(game.metacritic());
+        dto.setReleaseYear(game.releaseYear());
         dto.setBackgroundImage(game.backgroundImage());
         dto.setGenres(game.genres());
         dto.setSteamUrl(game.steamUrl());

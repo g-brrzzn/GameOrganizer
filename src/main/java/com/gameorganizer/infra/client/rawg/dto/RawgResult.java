@@ -6,7 +6,8 @@ import java.util.List;
 public class RawgResult {
     public Integer id;
     public String name;
-    public Integer playtime;
+    public Integer metacritic;
+    public String released;
     public List<RawgGenre> genres;
     public List<RawgStore> stores;
     public String background_image;

@@ -75,16 +75,23 @@ public class RawgAdapter implements GameSearchPort {
                 .orElse(null);
 
         Integer steamAppId = extractSteamAppId(rawgResult);
+        String year = extractYear(rawgResult.released);
 
         return new Game(
                 rawgResult.id,
                 rawgResult.name,
-                rawgResult.playtime,
+                rawgResult.metacritic,
+                year,
                 rawgResult.background_image,
                 genres,
                 steamUrl,
                 steamAppId
         );
+    }
+
+    private String extractYear(String dateStr) {
+        if (dateStr == null || dateStr.length() < 4) return "TBA";
+        return dateStr.substring(0, 4);
     }
 
     private Integer extractSteamAppId(RawgResult r) {
@@ -109,7 +116,6 @@ public class RawgAdapter implements GameSearchPort {
         try {
             return URLEncoder.encode(s, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("Falha ao encodar URL para: {}", s, e);
             return s;
         }
     }

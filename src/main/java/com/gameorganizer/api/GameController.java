@@ -19,16 +19,11 @@ public class GameController {
         this.service = service;
     }
 
-
     @GetMapping("/api/games/organize")
     public Mono<List<GameResponseDto>> organize(@RequestParam("name") String name) {
-
         return service.organizeByNameReactive(name)
-
-
-                .sort(Comparator.comparingInt((GameResponseDto g) -> g.getPlaytime() == null ? 0 : g.getPlaytime()).reversed())
-
-
+                .sort(Comparator.comparingInt((GameResponseDto g) ->
+                        g.getMetacritic() == null ? 0 : g.getMetacritic()).reversed())
                 .collectList();
     }
 }

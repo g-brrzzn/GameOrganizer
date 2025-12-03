@@ -5,8 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.gameorganizer.api.dto.GameResponseDto;
 import com.gameorganizer.domain.model.Game;
 import com.gameorganizer.domain.port.GameEnrichmentPort;
-import com.gameorganizer.infra.client.howlongtobeat.HltbScraperAdapter;
-import com.gameorganizer.infra.client.howlongtobeat.dto.HLTBInfo;
 import com.gameorganizer.infra.client.steam.dto.SteamAppDetails;
 import com.gameorganizer.infra.client.steam.dto.SteamAppDetailsData;
 import org.slf4j.Logger;
@@ -28,50 +26,32 @@ public class ExternalGameEnricher implements GameEnrichmentPort {
     private static final Logger log = LoggerFactory.getLogger(ExternalGameEnricher.class);
     private static final String STEAM_API_URL = "https://store.steampowered.com/api/appdetails";
 
-    private final HltbScraperAdapter hltbService;
     private final WebClient webClient;
 
-    public ExternalGameEnricher(HltbScraperAdapter hltbService, WebClient webClient) {
-        this.hltbService = hltbService;
+    public ExternalGameEnricher(WebClient webClient) {
         this.webClient = webClient;
     }
 
     @Override
     public Mono<GameResponseDto> enrich(GameResponseDto overview, Game game) {
-        Mono<Optional<SteamAppDetailsData>> steamDetailsMono = Mono.justOrEmpty(overview.getSteamAppid())
-                .flatMap(this::fetchSteamAppDetails)
+        if (overview.getSteamAppid() == null) {
+            return Mono.just(overview);
+        }
+
+        return fetchSteamAppDetails(overview.getSteamAppid())
                 .map(Optional::of)
                 .defaultIfEmpty(Optional.empty())
-                .onErrorResume(e -> {
-                    log.error("Falha ao buscar detalhes da Steam: {}", e.getMessage());
-                    return Mono.just(Optional.empty());
-                });
-        Mono<Optional<HLTBInfo>> hltbInfoMono = hltbService.search(game.name())
-                .onErrorResume(e -> {
-                    log.error("Falha ao fazer scraping do HLTB: {}", e.getMessage());
-                    return Mono.just(Optional.empty());
-                });
-        return Mono.zip(steamDetailsMono, hltbInfoMono)
-                .map(tuple -> {
-                    Optional<SteamAppDetailsData> steamDataOpt = tuple.getT1();
-                    Optional<HLTBInfo> hltbInfoOpt = tuple.getT2();
+                .map(steamDataOpt -> {
                     steamDataOpt.ifPresent(steamData -> {
                         SteamAppDetails details = new SteamAppDetails();
                         details.setRaw(steamData);
                         overview.setSteamData(details);
                     });
-                    if (hltbInfoOpt.isPresent()) {
-                        HLTBInfo info = hltbInfoOpt.get();
-                        overview.setHltbMain(info.getMain());
-                        overview.setHltbCompletionist(info.getCompletionist());
-                        overview.setHltbUrl(info.getUrl());
-                    } else {
-                        if (game.playtime() != null && game.playtime() > 0) {
-                            overview.setHltbMain(game.playtime() + " Hours (RAWG Est.)");
-                            overview.setHltbUrl("https://rawg.io/games/" + game.id());
-                        }
-                    }
                     return overview;
+                })
+                .onErrorResume(e -> {
+                    log.error("Falha ao buscar detalhes da Steam: {}", e.getMessage());
+                    return Mono.just(overview);
                 });
     }
 

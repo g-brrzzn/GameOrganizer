@@ -1,0 +1,68 @@
+:root {
+    --bg: #0f1724;
+    --card: #1e293b;
+    --muted: #94a3b8;
+    --accent: #3b82f6;
+    --text: #f1f5f9;
+    --glass: rgba(15, 23, 36, 0.7);
+    --radius: 12px;
+    --gold: #fbbf24;
+    --danger: #ef4444;
+    --success: #10b981;
+    --bg: #0a0c10;
+    --text: #e5e7eb;
+    --noise-size: 120px;
+    --atmos-blur: 1px;
+    --vignette-opacity: 0.9;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    background-color: var(--bg);
+}
+
+body {
+    font-family: "Inter", system-ui, sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image:
+            url('data:image/svg+xml;utf8,<svg%20xmlns="http://www.w3.org/2000/svg"%20width="120"%20height="120"><filter%20id="n"><feTurbulence%20baseFrequency="0.9"%20numOctaves="3"%20stitchTiles="stitch"/><feColorMatrix%20type="saturate"%20values="0"/></filter><rect%20width="100%25"%20height="100%25"%20filter="url(%23n)"%20opacity="0.08"/></svg>'),
+            radial-gradient(circle at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 60%);
+    background-repeat: repeat, no-repeat;
+    background-size: 120px 120px, 100% 100%;
+    background-blend-mode: soft-light;
+    filter: blur(var(--atmos-blur));
+    pointer-events: none;
+    will-change: filter, background;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: radial-gradient(
+            circle at center,
+            transparent 40%,
+            #02040a 120%
+    );
+    opacity: var(--vignette-opacity);
+    pointer-events: none;
+}
